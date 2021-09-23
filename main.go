@@ -18,7 +18,6 @@ func main() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-
 	//validator.Validate()
 
 	rpnStr, err := converter.Convert(str)
@@ -51,9 +50,7 @@ func readInputStr() (string,error) {
 	in := bufio.NewReader(os.Stdin)
 	scan_str, err := in.ReadString('\n')
 
-	fmt.Println(scan_str)
-
-	if err == nil {
+	if err != nil {
 		return "", err
 	}
 
