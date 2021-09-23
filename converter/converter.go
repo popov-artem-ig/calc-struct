@@ -1,104 +1,119 @@
 package converter
 
 import (
+	"calc-struct/queue"
+	"calc-struct/stack"
 	"calc-struct/utils"
 	"fmt"
 )
 
-func prior(c uint8) int {
-	switch c {
-	case '(':
-		return 1
-	case '+', '-':
-		return 2
-	case '*', '/':
-		return 3
-	default:
-		return 0
-	}
-}
-
-func pop(s string) (uint8, string) {
+func pop(s []string) (string, []string) {
 	return s[len(s)-1], s[:len(s)-1]
 }
 
-func top(s string) uint8 {
+func top(s []string) string {
 	if len(s) == 0 {
-		return 0
+		return ""
 	}
 	return s[len(s)-1]
 }
 
-func Convert(str string) (string, error) {
-	was_op := false
-	np := 0
-	stack := ""
-	strIn := str
-	strOut := ""
-	var v uint8
+func Convert(str string) ([]string, error) {
+	np := 0                   // Инкремент открытых скобок
+	var stackOp []string      // Стек операторов
+	var resQueue []string     // Результирующая очередь
+	strIn := str	          // Выражение для разбора
+	hoarder := ""   		  // Накопитель для сборки/обработки дробных и больших чисел
+	var v string
 
 	for i := range strIn {
 		c := strIn[i]
-		if utils.Is_digit(c) {
-			strOut += string(c)
-			was_op = false
+		//utils.DebugLog(string(c), stackOp, resQueue)
+
+		if utils.IsDigit(c) || c == '.' {
+			hoarder += string(c)
 			continue
-		} else if c != ' ' {
-			strOut += " "
 		}
+
+		if len(hoarder) > 0 {
+			resQueue = queue.Enqueue(hoarder, resQueue)
+			hoarder = ""
+		}
+
 		switch c {
-		case ' ':
-			{
-			}
 		case '(':
 			{
-				stack += string(c)
+				if i == len(strIn)-1 {
+					return []string{}, fmt.Errorf("syntax error. opening parenthesis at the end of an expression")
+				}
+				stackOp = stack.Push(string(c), stackOp)
 				np++
-				was_op = false
 			}
 		case '*', '/', '+', '-':
 			{
 				if i == len(strIn)-1 {
-					return "", fmt.Errorf("syntax error")
+					return []string{}, fmt.Errorf("syntax error. operator at the end of an expression")
 				}
-				if !was_op {
-					was_op = true
-					for prior(c) <= prior(top(stack)) {
-						v, stack = pop(stack)
-						strOut += string(v)
+
+					if stack.Peek(stackOp) == "" { //Если стек операторов пуст, алгоритм помещает входящий оператор в стек.
+						stackOp = stack.Push(string(c), stackOp)
+					} else {
+						//Если приоритет входящего оператора ниже,
+						//верхний оператор извлекается из стека и выводится в очередь,
+						//после чего входящий оператор сравнивается с новой вершиной стека.
+						for utils.Prior(string(c)) < utils.Prior(stack.Peek(stackOp)) {
+							v, stackOp = stack.Pop(stackOp)
+							resQueue = queue.Enqueue(v, resQueue)
+						}
+						//Если входящий оператор имеет более высокий приоритет,
+						//чем тот оператор, что в настоящее время находится на вершине стека,
+						//входящий оператор помещается на вершину стека.
+						if utils.Prior(string(c)) > utils.Prior(stack.Peek(stackOp)) {
+							stackOp = stack.Push(string(c), stackOp)
+						} else if utils.Prior(string(c)) == utils.Prior(stack.Peek(stackOp)) {
+							//Если входящий оператор имеет такой же приоритет,
+							//верхний оператор извлекается из стека и выводится в очередь,
+							//а входящий оператор помещается в стек.
+							v, stackOp = stack.Pop(stackOp)
+							resQueue = queue.Enqueue(v, resQueue)
+							stackOp = stack.Push(string(c), stackOp)
+						}
 					}
-					if prior(c) > prior(top(stack)) {
-						stack += string(c)
-					}
-					break
-				} else {
-					return "", fmt.Errorf("syntax error")
-				}
 			}
 		case ')':
 			{
-				if was_op {
-					return "", fmt.Errorf("syntax error")
-				} else {
-					v, stack = pop(stack)
-					for v != '(' && np > 0 {
-						strOut += string(v)
-						v, stack = pop(stack)
-					}
+				// До тех пор, пока верхним элементом стека не станет открывающая скобка, выталкиваем элементы из стека в выходную строку.
+				for stack.Peek(stackOp) != "(" && stack.Peek(stackOp) != "" {
+					v, stackOp = stack.Pop(stackOp)
+					resQueue = queue.Enqueue(v, resQueue)
 				}
-				np--
+				// Если стек закончился раньше, чем мы встретили открывающую скобку, это означает, что в выражении либо неверно поставлен разделитель,
+				// либо не согласованы скобки.
+				if stack.Peek(stackOp) == "" {
+					return []string{}, fmt.Errorf("syntax error. inconsistent parentheses")
+				}
+				// При этом открывающая скобка удаляется из стека, но в выходную строку не добавляется.
+				if stack.Peek(stackOp) == "(" {
+					v, stackOp = stack.Pop(stackOp)
+					np--
+				}
+				// Если после этого шага на вершине стека оказывается символ функции, выталкиваем его в выходную строку.
+				if utils.IsContainsFunc(stack.Peek(stackOp)) {
+					v, stackOp = stack.Pop(stackOp)
+					resQueue = queue.Enqueue(v, resQueue)
+				}
 			}
-		default:
-			return "", fmt.Errorf("syntax error")
+		/*default:
+			return "", fmt.Errorf("syntax error")*/
 		}
 	}
-	for i := range stack {
-		strOut += " " + string(stack[i])
+	for stack.Peek(stackOp) != "" {
+		v, stackOp = stack.Pop(stackOp)
+		resQueue = queue.Enqueue(v, resQueue)
 	}
-	if np > 0 {
+	/*if np > 0 {
 		return "", fmt.Errorf("syntax error")
-	}
+	}*/
 
-	return strOut, nil
-
+	return resQueue, nil
 }

@@ -1,58 +1,63 @@
 package calculator
 
 import (
-	stackR "calc-struct/stack"
+	"calc-struct/stack"
 	"calc-struct/utils"
+	"fmt"
 	"strconv"
 )
 
-func Calculate(str string) (uint8, error) {
+func Calculate(expressionRpn []string) (float64, error) {
+	var stackOp []string      // Стек операндов
 
-	stack := ""
-	var result uint8
+	for i := range expressionRpn {
+		s := expressionRpn[i]
+		var v float64
+		var err error
 
-	for i := 0; i < len(str); i++{
-		c := str[i]
-
-		if utils.Is_digit(c) {
-			stackR.Push(string(c), stack)
+		if utils.IsFloat(s) {
+			stackOp = stack.Push(s, stackOp)
 			continue
 		}
-
-		var a int
-		var b int
-
-		switch c {
-		case '+':
-			a, b, stack = getOperand(stack)
-			stackR.Push(string(a + b), stack)
-		case '-':
-			a, b, stack = getOperand(stack)
-			stackR.Push(string(a - b), stack)
-		case '*':
-			a, b, stack = getOperand(stack)
-			stackR.Push(string(a * b), stack)
-		case '/':
-			a, b, stack = getOperand(stack)
-			stackR.Push(string(a / b), stack)
+		//Если это оператор, соответствующее количество операндов перекладывается из стека во временные переменные
+		v, stackOp, err = evaluateOperator(s, stackOp)
+		if err != nil {
+			return 0, err
 		}
+		stackOp = stack.Push(fmt.Sprintf("%f", v), stackOp)
 	}
 
-	if(stackR.Count(stack) > 1) {
+	if(stack.Count(stackOp) > 1) {
 		panic("Input did not fully simplify")
 	}
 
-	result, stack = stackR.Pop(stack)
+	stRes, _ := stack.Pop(stackOp)
+	result, _ := strconv.ParseFloat(stRes, 64)
 	return result, nil
 }
 
-func getOperand(stack string) (int, int, string) {
-	var a uint8
-	var b uint8
-	b, stack = stackR.Pop(stack)
-	a, stack = stackR.Pop(stack)
-	var intb, _ = strconv.Atoi(string(b))
-	var inta, _ = strconv.Atoi(string(a))
+func evaluateOperator(operator string, stackOp []string) (float64, []string, error) {
+	var a string
+	var b string
+	b, stackOp = stack.Pop(stackOp)
+	a, stackOp = stack.Pop(stackOp)
+	bf, err := strconv.ParseFloat(b, 64)
+	af, err := strconv.ParseFloat(a, 64)
 
-	return inta, intb, stack
+	if err != nil {
+		return 0, stackOp, err
+	}
+
+	switch operator {
+	case "+":
+		return af + bf, stackOp, nil
+	case "-":
+		return af - bf, stackOp, nil
+	case "*":
+		return af * bf, stackOp, nil
+	case "/":
+		return af / bf, stackOp, nil
+	}
+
+	return 0, stackOp, fmt.Errorf("unexpected operator")
 }
