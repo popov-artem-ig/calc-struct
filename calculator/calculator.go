@@ -56,7 +56,11 @@ func evaluateOperator(operator string, stackOp []string) (float64, []string, err
 	case "*":
 		return af * bf, stackOp, nil
 	case "/":
-		return af / bf, stackOp, nil
+		if bf != 0.0 {
+			return af / bf, stackOp, nil
+		} else {
+			return 0, stackOp, fmt.Errorf("division by 0 is prohibited")
+		}
 	}
 
 	return 0, stackOp, fmt.Errorf("unexpected operator")
