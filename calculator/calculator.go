@@ -41,6 +41,9 @@ func evaluateOperator(operator string, stackOp []string) (float64, []string, err
 	var b string
 	b, stackOp = stack.Pop(stackOp)
 	a, stackOp = stack.Pop(stackOp)
+	if a == "" {
+		a = "0"
+	}
 	bf, err := strconv.ParseFloat(b, 64)
 	af, err := strconv.ParseFloat(a, 64)
 

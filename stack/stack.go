@@ -5,7 +5,10 @@ func Push(s string, stack []string) []string {
 }
 
 func Pop(stack []string) (string, []string) {
-	return stack[len(stack)-1], stack[:len(stack)-1]
+	if len(stack) > 0 {
+		return stack[len(stack)-1], stack[:len(stack)-1]
+	}
+	return "", stack
 }
 
 func Peek(stack []string) string {
